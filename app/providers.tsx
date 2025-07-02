@@ -1,7 +1,25 @@
 "use client";
 
 import { SessionProvider } from "next-auth/react";
+import { Toaster } from "sonner";
+import React, { createContext, useContext, useState } from "react";
+
+// Global Loading Context
+const LoadingContext = createContext<{
+  loading: boolean;
+  setLoading: (v: boolean) => void;
+}>({ loading: false, setLoading: () => {} });
+
+export function useLoading() {
+  return useContext(LoadingContext);
+}
 
 export default function Providers({ children }: { children: React.ReactNode }) {
-  return <SessionProvider>{children}</SessionProvider>;
-} 
+  const [loading, setLoading] = useState(false);
+  return (
+    <LoadingContext.Provider value={{ loading, setLoading }}>
+      <Toaster position="top-right" richColors />
+      <SessionProvider>{children}</SessionProvider>
+    </LoadingContext.Provider>
+  );
+}

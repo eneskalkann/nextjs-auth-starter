@@ -1,11 +1,11 @@
 // app/layout.tsx
 import "./globals.css";
-import Header from "./Header";
 import Providers from "./providers";
+import GlobalSpinnerWrapper from "../components/GlobalSpinnerWrapper";
 
 export const metadata = {
-  title: "Superblog",
-  description: "A blog app using Next.js and Prisma",
+  title: "Vintemo",
+  description: "ecom",
 };
 
 export default function RootLayout({
@@ -15,11 +15,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
+      <body className="">
         <Providers>
-          <div className="min-h-screen flex flex-col">
-            <Header />
-            <main className="flex-1">{children}</main>
+          <GlobalSpinnerWrapper />
+          <div>
+            <main className="w-full flex items-center justify-center h-full">
+              {children}
+            </main>
           </div>
         </Providers>
       </body>

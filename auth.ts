@@ -17,18 +17,12 @@ export const authOptions = {
           throw new Error("Invalid credentials");
         }
 
-        const user = await prisma.user.findUnique({
+        const user = (await prisma.user.findUnique({
           where: { email: credentials.email },
-        });
+        })) as any;
 
         if (!user) {
-          return await prisma.user.create({
-            data: {
-              name: credentials.name ?? credentials.email,
-              email: credentials.email,
-              password: await bcrypt.hash(credentials.password, 10),
-            },
-          });
+          throw new Error("User not found. Please register first.");
         }
 
         const isCorrectPassword = await bcrypt.compare(
@@ -40,7 +34,12 @@ export const authOptions = {
           throw new Error("Invalid credentials");
         }
 
-        return user;
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        };
       },
     }),
   ],
@@ -48,11 +47,17 @@ export const authOptions = {
     signIn: "/login",
   },
   callbacks: {
-    async jwt({ token, user }) {
-      return { ...token, id: token.id ?? user?.id };
+    async jwt({ token, user }: { token: any; user?: any }) {
+      if (user) {
+        return { ...token, id: token.id ?? user.id, role: user.role };
+      }
+      return token;
     },
     async session({ session, token }) {
-      return { ...session, user: { ...session.user, id: token.id } };
+      return {
+        ...session,
+        user: { ...session.user, id: token.id, role: token.role },
+      };
     },
   },
 } satisfies NextAuthOptions;
