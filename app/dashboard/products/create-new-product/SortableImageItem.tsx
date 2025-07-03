@@ -6,13 +6,20 @@ import Image from "next/image";
 import RemoveImageButton from "./RemoveImageButton";
 
 interface SortableImageItemProps {
-  file: File;
+  file?: File;
+  url?: string;
   id: string;
   index: number;
   onRemove: () => void;
 }
 
-export default function SortableImageItem({ file, id, index, onRemove }: SortableImageItemProps) {
+export default function SortableImageItem({
+  file,
+  url,
+  id,
+  index,
+  onRemove,
+}: SortableImageItemProps) {
   const {
     attributes,
     listeners,
@@ -29,6 +36,13 @@ export default function SortableImageItem({ file, id, index, onRemove }: Sortabl
     opacity: isDragging ? 0.5 : 1,
   };
 
+  let imageSrc = "";
+  if (file) {
+    imageSrc = URL.createObjectURL(file);
+  } else if (url) {
+    imageSrc = url;
+  }
+
   return (
     <div
       ref={setNodeRef}
@@ -40,14 +54,16 @@ export default function SortableImageItem({ file, id, index, onRemove }: Sortabl
       <div className="absolute top-2 left-2 bg-black bg-gray-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center z-10">
         {index + 1}
       </div>
-      <Image
-        src={URL.createObjectURL(file)}
-        alt={file.name}
-        width={100}
-        height={100}
-        className="object-cover w-full h-full"
-        unoptimized
-      />
+      {imageSrc && (
+        <Image
+          src={imageSrc}
+          alt={file ? file.name : `Product image ${index + 1}`}
+          width={100}
+          height={100}
+          className="object-cover w-full h-full"
+          unoptimized={!!file}
+        />
+      )}
       <RemoveImageButton onClick={onRemove} />
     </div>
   );

@@ -1,31 +1,38 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { createProduct } from "../actions";
+import CategorySelect from "@/components/categorySelect";
+import Button from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import Button from "@/components/ui/button";
-import UploadIcon from "./UploadIcon";
+import { toast } from "sonner";
+import UploadIcon from "@/components/ui/UploadIcon";
 import {
-  DndContext,
   closestCenter,
+  DndContext,
+  DragEndEvent,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
-  DragEndEvent,
 } from "@dnd-kit/core";
 import {
   arrayMove,
-  SortableContext,
   rectSortingStrategy,
+  SortableContext,
 } from "@dnd-kit/sortable";
+import Link from "next/link";
+import { useState } from "react";
+import { createProduct } from "../actions";
 import SortableImageItem from "./SortableImageItem";
+import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import Spinner from "@/components/ui/Spinner";
 
 export default function CreateNewProductPage() {
-  const [error, setError] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [categoryId, setCategoryId] = useState("");
+  const router = useRouter();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -40,10 +47,9 @@ export default function CreateNewProductPage() {
     const files = Array.from(e.target.files || []);
     const oversize = files.find((f) => f.size > 5 * 1024 * 1024);
     if (oversize) {
-      setError("Each image must be 5MB or smaller");
+      toast.error("Her görsel 5MB veya daha küçük olmalı.");
       return;
     }
-    setError(null);
     setSelectedFiles((prev) => {
       const names = new Set(prev.map((f) => f.name + f.size));
       return [...prev, ...files.filter((f) => !names.has(f.name + f.size))];
@@ -71,19 +77,24 @@ export default function CreateNewProductPage() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
     const form = new FormData(event.currentTarget);
+    form.append("categoryId", categoryId);
+
+    if (selectedFiles.length === 0) {
+      toast.error("En az bir görsel eklemelisiniz.");
+      return;
+    }
 
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
     const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
     if (!cloudName || !uploadPreset) {
-      setError("Cloudinary ayarları eksik");
+      toast.error("Birşeyler ters gitti.");
       return;
     }
     const urls: string[] = [];
     for (const file of selectedFiles) {
       if (file.size > 5 * 1024 * 1024) {
-        setError("Each image must be 5MB or smaller");
+        toast.error("Her görsel 5MB veya daha küçük olmalı.");
         return;
       }
       const data = new FormData();
@@ -104,15 +115,21 @@ export default function CreateNewProductPage() {
           throw new Error(json.error?.message || "Cloudinary upload failed");
         urls.push(json.secure_url);
       } catch (err: any) {
-        setError(err.message || "Cloudinary upload error");
+        toast.error(err.message || "Cloudinary upload error");
         return;
       }
     }
     urls.forEach((url) => form.append("imageUrls", url));
     try {
-      await createProduct(form);
+      const result = await createProduct(form);
+      if (result?.slug) {
+        router.push(`/dashboard/products/${result.slug}`);
+        toast.success("Ürün başarıyla oluşturuldu!");
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create product");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to create product"
+      );
     }
   }
 
@@ -121,19 +138,13 @@ export default function CreateNewProductPage() {
       <div className="mb-8">
         <Link
           href="/dashboard/products"
-          className="text-blue-600 hover:text-blue-800"
+          className="flex items-center gap-2 font-semibold text-black"
         >
-          ← Back to Products
+          <ArrowLeft /> Back to Products
         </Link>
       </div>
 
       <div className="mx-auto w-full">
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="flex gap-4 w-full h-full">
           <div className="w-1/2 h-full">
             <div className="h-full bg-white w-full rounded-lg shadow-md p-2 aspect-square overflow-y-auto">
@@ -150,7 +161,6 @@ export default function CreateNewProductPage() {
                     <input
                       id="product-images"
                       type="file"
-                      required
                       accept="image/*"
                       multiple
                       onChange={handleFileChange}
@@ -229,6 +239,12 @@ export default function CreateNewProductPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">
+                Select Category
+              </label>
+              <CategorySelect value={categoryId} onChange={setCategoryId} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
                 Price
               </label>
               <Input
@@ -247,7 +263,6 @@ export default function CreateNewProductPage() {
                 type="number"
                 step="0.01"
                 name="fixed_price"
-                required
                 placeholder="0.00"
               />
             </div>
@@ -280,9 +295,13 @@ export default function CreateNewProductPage() {
             <div className="flex justify-end">
               <Button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center min-w-[140px]"
+                disabled={isLoading}
               >
-                Create Product
+                {isLoading ? (
+                  <Spinner className="h-5 w-5 text-white mr-2" />
+                ) : null}
+                {isLoading ? "Oluşturuluyor..." : "Create Product"}
               </Button>
             </div>
           </div>

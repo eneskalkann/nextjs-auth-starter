@@ -3,7 +3,6 @@ import Image from "next/image";
 import Link from "next/link";
 
 export default function ProductCard({ product }: { product: Product }) {
-  console.log(product);
   return (
     <Link
       href={`/dashboard/products/${product.slug}`}

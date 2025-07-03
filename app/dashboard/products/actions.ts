@@ -4,6 +4,7 @@ import { authOptions } from "@/auth";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import cloudinary from "@/lib/cloudinary";
 
 export async function getServerSessionSafe() {
   return getServerSession(authOptions);
@@ -57,13 +58,12 @@ export async function getProductBySlug(slug: string) {
   return product;
 }
 
-export async function updateProduct(formData: FormData) {
+export async function updateProduct(slug: string, formData: FormData) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
 
-  const slug = formData.get("slug") as string;
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
   const price = parseFloat(formData.get("price") as string);
@@ -72,11 +72,63 @@ export async function updateProduct(formData: FormData) {
   const isOnSale = formData.get("isOnSale") === "on";
   const isOnShopPage = formData.get("isOnShopPage") === "on";
 
-  await prisma.product.update({
-    where: {
-      slug,
-      userId: session.user.id,
-    },
+  // Görsel sırası ve silinecekler
+  const imageOrder = JSON.parse((formData.get("imageOrder") as string) || "[]");
+  const deletedImages = JSON.parse(
+    (formData.get("deletedImages") as string) || "[]"
+  );
+  const newImages = formData.getAll("newImages") as File[];
+
+  // 1. Silinecek görselleri Cloudinary ve DB'den sil
+  for (const imageId of deletedImages) {
+    const image = await prisma.productImage.findUnique({
+      where: { id: Number(imageId) },
+    });
+    if (image) {
+      // Cloudinary public_id'yi url'den çıkar
+      const publicId = image.url.split("/").slice(-1)[0].split(".")[0];
+      try {
+        await cloudinary.uploader.destroy(`products/${publicId}`);
+      } catch (e) {
+        // logla ama devam et
+        console.error("Cloudinary silme hatası:", e);
+      }
+      await prisma.productImage.delete({ where: { id: image.id } });
+    }
+  }
+
+  // 2. Yeni görselleri Cloudinary'e yükle ve url'lerini al
+  const uploadedImageUrls: string[] = [];
+  for (const file of newImages) {
+    // Next.js server actions'da File objesi buffer ile alınır
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const uploadRes = await cloudinary.uploader.upload_stream(
+      { folder: "products" },
+      (err, result) => {
+        if (err || !result) throw err || new Error("Cloudinary upload failed");
+        return result.secure_url;
+      }
+    );
+    // upload_stream callback ile çalışır, await ile kullanmak için bir promise'e sarmak gerekir
+    const url = await new Promise<string>((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: "products" },
+        (err, result) => {
+          if (err || !result)
+            return reject(err || new Error("Cloudinary upload failed"));
+          resolve(result.secure_url);
+        }
+      );
+      stream.end(buffer);
+    });
+    uploadedImageUrls.push(url);
+  }
+
+  // 3. Ürünü güncelle
+  const categoryId = formData.get("categoryId") as string;
+  const product = await prisma.product.update({
+    where: { slug, userId: session.user.id },
     data: {
       title,
       description,
@@ -86,10 +138,25 @@ export async function updateProduct(formData: FormData) {
       isOnSale,
       isOnShopPage,
       updatedAt: new Date(),
+      category: categoryId ? { set: [{ id: Number(categoryId) }] } : undefined,
     },
   });
 
-  redirect(`/dashboard/products/${slug}`);
+  // 4. Yeni görselleri DB'ye ekle
+  for (const url of uploadedImageUrls) {
+    await prisma.productImage.create({
+      data: {
+        url,
+        productId: product.id,
+      },
+    });
+  }
+
+  // 5. Görsel sırasını güncelle (varsayım: product.images ile imageOrder aynı uzunlukta ve sıralı)
+  // Eğer productImage modelinde bir 'order' alanı yoksa, eklenmesi önerilir. Yoksa bu adımı atla.
+  // Burada sıralama desteği için bir güncelleme yapılabilir.
+
+  return true;
 }
 
 export async function deleteProduct(slug: string) {
@@ -105,9 +172,8 @@ export async function deleteProduct(slug: string) {
     },
   });
 
-  redirect("//products");
+  return true;
 }
-
 
 export async function getCategories() {
   try {
@@ -138,20 +204,25 @@ export async function createProduct(formData: FormData) {
   const isOnShopPage = formData.get("isOnShopPage") === "on";
   const imageUrls = formData.getAll("imageUrls") as string[];
 
-  // Handle Categories
-  const categoryIdsString = formData.get("categoryIds") as string;
-  const categoryIds = categoryIdsString
-    ? categoryIdsString.split(",").map((id) => parseInt(id.trim()))
-    : [];
+  // Kategori ID'sini formdan al
+  const categoryId = formData.get("categoryId") as string;
 
   // Handle Tags
   const tagsString = formData.get("tags") as string;
   const tags = tagsString
-    ? tagsString.split(",").map((tag) => tag.trim().replace(/^#/, '')).filter(Boolean)
+    ? tagsString
+        .split(",")
+        .map((tag) => tag.trim().replace(/^#/, ""))
+        .filter(Boolean)
     : [];
 
   // Create slug from title
-  const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "");
+  const randomSlugCode = "VINTEMO" + Math.floor(Math.random() * 100000000);
+  const baseSlug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+  const slug = `${baseSlug}-${randomSlugCode}`;
 
   if (!title || !slug) {
     throw new Error("Title is required to create a product.");
@@ -168,20 +239,29 @@ export async function createProduct(formData: FormData) {
       isOnShopPage,
       slug,
       userId: session.user.id,
-      images: imageUrls.length > 0 ? {
-        create: imageUrls.map((url: string) => ({ url }))
-      } : undefined,
-      category: categoryIds.length > 0 ? {
-        connect: categoryIds.map((id) => ({ id }))
-      } : undefined,
-      tags: tags.length > 0 ? {
-        connectOrCreate: tags.map((name) => ({
-          where: { name },
-          create: { name },
-        })),
-      } : undefined,
+      images:
+        imageUrls.length > 0
+          ? {
+              create: imageUrls.map((url: string) => ({ url })),
+            }
+          : undefined,
+      category: categoryId
+        ? {
+            connect: { id: Number(categoryId) },
+          }
+        : undefined,
+      tags:
+        tags.length > 0
+          ? {
+              connectOrCreate: tags.map((name) => ({
+                where: { name },
+                create: { name },
+              })),
+            }
+          : undefined,
     },
   });
 
-  redirect(`/dashboard/products/${slug}`);
+  // Başarılı olursa slug'ı döndür
+  return { slug };
 }
