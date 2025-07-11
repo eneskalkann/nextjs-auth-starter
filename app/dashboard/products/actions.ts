@@ -18,10 +18,10 @@ export async function getUserProducts() {
 
   const products = await prisma.product.findMany({
     where: {
-      userId: session.user.id,
+      adminId: session.user.id,
     },
     include: {
-      category: true,
+      categories: true,
       tags: true,
       images: true,
     },
@@ -42,10 +42,10 @@ export async function getProductBySlug(slug: string) {
   const product = await prisma.product.findFirst({
     where: {
       slug,
-      userId: session.user.id,
+      adminId: session.user.id,
     },
     include: {
-      category: true,
+      categories: true,
       tags: true,
       images: true,
     },
@@ -128,7 +128,7 @@ export async function updateProduct(slug: string, formData: FormData) {
   // 3. Ürünü güncelle
   const categoryId = formData.get("categoryId") as string;
   const product = await prisma.product.update({
-    where: { slug, userId: session.user.id },
+    where: { slug, adminId: session.user.id },
     data: {
       title,
       description,
@@ -138,7 +138,7 @@ export async function updateProduct(slug: string, formData: FormData) {
       isOnSale,
       isOnShopPage,
       updatedAt: new Date(),
-      category: categoryId ? { set: [{ id: Number(categoryId) }] } : undefined,
+      categories: categoryId ? { set: [{ id: Number(categoryId) }] } : undefined,
     },
   });
 
@@ -168,7 +168,7 @@ export async function deleteProduct(slug: string) {
   await prisma.product.delete({
     where: {
       slug,
-      userId: session.user.id,
+      adminId: session.user.id,
     },
   });
 
@@ -238,14 +238,14 @@ export async function createProduct(formData: FormData) {
       isOnSale,
       isOnShopPage,
       slug,
-      userId: session.user.id,
+      adminId: session.user.id,
       images:
         imageUrls.length > 0
           ? {
               create: imageUrls.map((url: string) => ({ url })),
             }
           : undefined,
-      category: categoryId
+      categories: categoryId
         ? {
             connect: { id: Number(categoryId) },
           }

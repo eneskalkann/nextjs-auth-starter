@@ -1,45 +1,46 @@
 import CredentialsProvider from "next-auth/providers/credentials";
 import { type NextAuthOptions } from "next-auth";
-import prisma from "@/lib/prisma";
+import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
-export const authOptions = {
+const prisma = new PrismaClient();
+
+export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: "credentials",
       credentials: {
         email: { label: "Email", type: "email" },
-        name: { label: "Name", type: "name" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials: Record<"email" | "password", string> | undefined) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Invalid credentials");
+          throw new Error("Email ve şifre gereklidir");
         }
 
-        const user = (await prisma.user.findUnique({
+        const admin = await prisma.admin.findUnique({
           where: { email: credentials.email },
-        })) as any;
+        });
 
-        if (!user) {
-          throw new Error("User not found. Please register first.");
+        if (!admin) {
+          throw new Error("Admin bulunamadı");
         }
 
         const isCorrectPassword = await bcrypt.compare(
           credentials.password,
-          user.password
+          admin.password
         );
 
         if (!isCorrectPassword) {
-          throw new Error("Invalid credentials");
+          throw new Error("Geçersiz şifre");
         }
 
         return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        };
+          id: admin.id,
+          name: admin.name || '',
+          email: admin.email,
+          role: admin.role || 'ADMIN',
+        } as const;
       },
     }),
   ],
@@ -47,9 +48,10 @@ export const authOptions = {
     signIn: "/login",
   },
   callbacks: {
-    async jwt({ token, user }: { token: any; user?: any }) {
+    async jwt({ token, user }) {
       if (user) {
-        return { ...token, id: token.id ?? user.id, role: user.role };
+        token.id = user.id;
+        token.role = user.role || 'ADMIN';
       }
       return token;
     },
@@ -60,4 +62,9 @@ export const authOptions = {
       };
     },
   },
+  session: {
+    strategy: "jwt",
+  },
+  secret: process.env.NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV === "development",
 } satisfies NextAuthOptions;

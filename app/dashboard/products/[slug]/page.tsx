@@ -64,7 +64,7 @@ export default function ProductDetailPage({
         (data.images || []).map((img: any) => ({ id: img.id, url: img.url }))
       );
       setDeletedImages([]);
-      setCategoryId(data.category?.[0]?.id ? String(data.category[0].id) : "");
+      setCategoryId(data.categories?.[0]?.id ? String(data.categories[0].id) : "");
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load product");

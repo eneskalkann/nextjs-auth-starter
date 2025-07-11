@@ -13,10 +13,10 @@ export async function GET(request: NextRequest) {
       take: productsPerPage,
       orderBy: { createdAt: "desc" },
       where: {
-        userId: url.searchParams.get("userId") as string,
+        adminId: url.searchParams.get("adminId") as string,
       },
       include: {
-        category: true,
+        categories: true,
         tags: true,
         images: true,
       },
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
     const totalProducts = await prisma.product.count({
       where: {
-        userId: url.searchParams.get("userId") as string,
+        adminId: url.searchParams.get("adminId") as string,
       },
     });
     const totalPages = Math.ceil(totalProducts / productsPerPage);

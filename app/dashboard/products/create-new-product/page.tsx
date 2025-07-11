@@ -77,6 +77,12 @@ export default function CreateNewProductPage() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    
+    if (!categoryId) {
+      toast.error("Lütfen bir kategori seçin.");
+      return;
+    }
+
     const form = new FormData(event.currentTarget);
     form.append("categoryId", categoryId);
 
@@ -276,6 +282,7 @@ export default function CreateNewProductPage() {
               <input
                 type="checkbox"
                 name="isOnSale"
+                checked={true}
                 className="rounded border-gray-400 text-blue-400 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
               <label className="text-sm font-medium text-gray-700">
@@ -285,6 +292,7 @@ export default function CreateNewProductPage() {
             <div className="flex items-center space-x-2">
               <input
                 type="checkbox"
+                checked={true}
                 name="isOnShopPage"
                 className="rounded border-gray-400 text-blue-400 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />

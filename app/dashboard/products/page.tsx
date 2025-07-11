@@ -19,10 +19,10 @@ export default async function ProductsPage({
     redirect("/login");
   }
 
-  const products: Product[] = await prisma.product.findMany({
-    where: { userId: session.user.id },
+  const products = await prisma.product.findMany({
+    where: { adminId: session.user.id },
     include: {
-      category: true,
+      categories: true,
       tags: true,
       images: true,
     },
@@ -53,6 +53,10 @@ export default async function ProductsPage({
         </p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <p className="text-gray-600 text-md font-medium col-span-1 md:col-span-2 lg:col-span-3">
+            {products?.length} adet ürün var.
+          </p>
+
           {products?.map((product: Product) => {
             return (
               <div key={product.id}>

@@ -11,7 +11,7 @@ export async function GET(
         slug: (await context.params).slug,
       },
       include: {
-        category: true,
+        categories: true,
         tags: true,
         images: true,
       },

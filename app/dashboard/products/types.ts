@@ -31,7 +31,7 @@ export interface Product {
   isOnSale: boolean;
   isOnShopPage: boolean;
   slug: string;
-  userId: string;
+  adminId: string;
   createdAt: Date;
   updatedAt: Date;
   category?: Category[];
