@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import LoginForm from "../../components/LoginForm";
 import { useLoading } from "../providers";
+import Spinner from "@/components/ui/Spinner";
 
 export default function LoginPage() {
   const { setLoading } = useLoading();
@@ -15,7 +16,7 @@ export default function LoginPage() {
             Sign in to your account
           </h2>
         </div>
-        <Suspense fallback={null}>
+        <Suspense fallback={<Spinner />}>
           <LoginForm setLoading={setLoading} />
         </Suspense>
       </div>

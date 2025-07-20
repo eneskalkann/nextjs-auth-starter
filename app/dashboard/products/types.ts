@@ -21,23 +21,21 @@ export interface ProductImage {
   createdAt: Date;
 }
 
-export interface Product {
+export type Product = {
   id: number;
   title: string;
-  description: string | null;
-  price: number;
-  fixed_price: number;
-  stock: number;
-  isOnSale: boolean;
-  isOnShopPage: boolean;
   slug: string;
-  adminId: string;
   createdAt: Date;
   updatedAt: Date;
-  category?: Category[];
-  tags?: Tag[];
-  images?: ProductImage[];
-}
+  description: string | null;
+  isOnSale: boolean;
+  price: number;
+  fixed_price: number | null;
+  stock: number;
+  isOnShopPage: boolean;
+  adminId: string;
+  images?: { id: string; url: string }[];
+};
 
 export interface ProductFormValues {
   title: string;

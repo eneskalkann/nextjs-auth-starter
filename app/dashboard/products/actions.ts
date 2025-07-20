@@ -138,7 +138,9 @@ export async function updateProduct(slug: string, formData: FormData) {
       isOnSale,
       isOnShopPage,
       updatedAt: new Date(),
-      categories: categoryId ? { set: [{ id: Number(categoryId) }] } : undefined,
+      categories: categoryId
+        ? { set: [{ id: Number(categoryId) }] }
+        : undefined,
     },
   });
 
@@ -198,7 +200,11 @@ export async function createProduct(formData: FormData) {
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
   const price = parseFloat(formData.get("price") as string);
-  const fixed_price = parseFloat(formData.get("fixed_price") as string);
+  const fixed_price_raw = formData.get("fixed_price") as string;
+  const fixed_price =
+    fixed_price_raw && !isNaN(Number(fixed_price_raw))
+      ? parseFloat(fixed_price_raw)
+      : null;
   const stock = parseInt(formData.get("stock") as string);
   const isOnSale = formData.get("isOnSale") === "on";
   const isOnShopPage = formData.get("isOnShopPage") === "on";

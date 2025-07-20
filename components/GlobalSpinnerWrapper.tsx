@@ -1,6 +1,6 @@
 "use client";
-import Spinner from "./ui/Spinner";
 import { useLoading } from "../app/providers";
+import Spinner from "./ui/Spinner";
 
 export default function GlobalSpinnerWrapper() {
   const { loading } = useLoading();

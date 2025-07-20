@@ -1,11 +1,10 @@
 "use client";
 
-import CategorySelect from "@/components/categorySelect";
-import Button from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import UploadIcon from "@/components/ui/UploadIcon";
+import Spinner from "@/components/ui/Spinner";
 import {
   closestCenter,
   DndContext,
@@ -26,13 +25,46 @@ import { createProduct } from "../actions";
 import SortableImageItem from "./SortableImageItem";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
-import Spinner from "@/components/ui/Spinner";
+import UploadIcon from "@/components/ui/UploadIcon";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { getCategories } from "../actions";
+import { useEffect } from "react";
+import CategorySelect from "@/components/categorySelect";
+import { Switch } from "@/components/ui/switch";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 export default function CreateNewProductPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [categoryId, setCategoryId] = useState("");
   const router = useRouter();
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>(
+    []
+  );
+  const [isOnSale, setIsOnSale] = useState(true);
+  const [isOnShopPage, setIsOnShopPage] = useState(false);
+
+  useEffect(() => {
+    async function fetchCategories() {
+      const cats = await getCategories();
+      setCategories(cats);
+    }
+    fetchCategories();
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -77,7 +109,7 @@ export default function CreateNewProductPage() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    
+
     if (!categoryId) {
       toast.error("Lütfen bir kategori seçin.");
       return;
@@ -85,6 +117,8 @@ export default function CreateNewProductPage() {
 
     const form = new FormData(event.currentTarget);
     form.append("categoryId", categoryId);
+    form.append("isOnSale", isOnSale ? "on" : "off");
+    form.append("isOnShopPage", isOnShopPage ? "on" : "off");
 
     if (selectedFiles.length === 0) {
       toast.error("En az bir görsel eklemelisiniz.");
@@ -142,12 +176,19 @@ export default function CreateNewProductPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <Link
-          href="/dashboard/products"
-          className="flex items-center gap-2 font-semibold text-black"
-        >
-          <ArrowLeft /> Back to Products
-        </Link>
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/dashboard/products">
+                Ürünler
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Yeni ürün oluştur</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
       </div>
 
       <div className="mx-auto w-full">
@@ -221,9 +262,7 @@ export default function CreateNewProductPage() {
           </div>
           <div className="flex-1 flex flex-col gap-4 w-full">
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Title
-              </label>
+              <Label>Title</Label>
               <Input
                 type="text"
                 name="title"
@@ -232,27 +271,18 @@ export default function CreateNewProductPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Description
-              </label>
+              <Label>Description</Label>
               <Textarea
                 name="description"
                 required
-                maxLength={200}
                 placeholder="Product description"
-                showCharacterCount={true}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Select Category
-              </label>
               <CategorySelect value={categoryId} onChange={setCategoryId} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Price
-              </label>
+              <Label>Price</Label>
               <Input
                 type="number"
                 step="0.01"
@@ -262,14 +292,14 @@ export default function CreateNewProductPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Fixed Price
-              </label>
+              <Label>Fixed Price</Label>
               <Input
                 type="number"
                 step="0.01"
                 name="fixed_price"
                 placeholder="0.00"
+                min="0"
+                // required kaldırıldı
               />
             </div>
             <div>
@@ -279,37 +309,37 @@ export default function CreateNewProductPage() {
               <Input type="number" name="stock" required placeholder="0" />
             </div>
             <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                name="isOnSale"
-                checked={true}
-                className="rounded border-gray-400 text-blue-400 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              <Switch
+                checked={isOnSale}
+                onCheckedChange={setIsOnSale}
+                id="isOnSale"
               />
-              <label className="text-sm font-medium text-gray-700">
+              <label
+                htmlFor="isOnSale"
+                className="text-sm font-medium text-gray-700"
+              >
                 On Sale
               </label>
             </div>
+            {/*
             <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={true}
-                name="isOnShopPage"
-                className="rounded border-gray-400 text-blue-400 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              <Switch
+                checked={isOnShopPage}
+                onCheckedChange={setIsOnShopPage}
+                id="isOnShopPage"
               />
-              <label className="text-sm font-medium text-gray-700">
+              <label
+                htmlFor="isOnShopPage"
+                className="text-sm font-medium text-gray-700"
+              >
                 Show on Shop Page
               </label>
             </div>
+            */}
             <div className="flex justify-end">
-              <Button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center min-w-[140px]"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <Spinner className="h-5 w-5 text-white mr-2" />
-                ) : null}
-                {isLoading ? "Oluşturuluyor..." : "Create Product"}
+              <Button type="submit" disabled={isLoading}>
+                {isLoading && <Spinner className="mr-2" />}
+                {isLoading ? "Oluşturuluyor..." : "Ürünü oluştur"}
               </Button>
             </div>
           </div>

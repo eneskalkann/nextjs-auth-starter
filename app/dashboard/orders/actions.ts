@@ -1,45 +1,35 @@
 "use server";
 
 import { authOptions } from "@/auth";
-import { PrismaClient } from "@prisma/client";
+import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 
-const prisma = new PrismaClient();
-
 export async function getOrders() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized");
+  }
   try {
-    const orders = await prisma.$queryRaw`
-      SELECT 
-        o.*, 
-        o."isNew" as "isNew",
-        json_build_object(
-          'id', u.id,
-          'name', u.name,
-          'email', u.email
-        ) as user,
-        (
-          SELECT json_agg(
-            json_build_object(
-              'id', oi.id,
-              'productId', oi."productId",
-              'quantity', oi.quantity,
-              'price', oi.price,
-              'createdAt', oi."createdAt",
-              'product', json_build_object(
-                'id', p.id,
-                'title', p.title
-              )
-            )
-          )
-          FROM "OrderItem" oi
-          JOIN "Product" p ON oi."productId" = p.id
-          WHERE oi."orderId" = o.id
-        ) as items
-      FROM "Order" o
-      JOIN "User" u ON o."userId" = u.id
-      ORDER BY o."createdAt" DESC
-    `;
-
+    const orders = await prisma.order.findMany({
+      where: {
+        items: {
+          some: {
+            product: {
+              adminId: session.user.id,
+            },
+          },
+        },
+      },
+      include: {
+        user: true,
+        items: {
+          include: {
+            product: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
     return { data: orders, error: null };
   } catch (error) {
     console.error("Siparişler alınırken hata oluştu:", error);
@@ -94,4 +84,27 @@ export async function markOrderAsRead(orderId: string) {
     where: { id: orderId },
     data: { isNew: false },
   });
+}
+
+export async function updateOrderStatus(orderId: string, newStatus: string) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized");
+  }
+  const order = await prisma.order.update({
+    where: { id: orderId },
+    data: { status: newStatus },
+  });
+  return order;
+}
+
+export async function updateOrderStatusAction(
+  orderId: string,
+  prevState: any,
+  formData: FormData
+) {
+  "use server";
+  const newStatus = formData.get("status") as string;
+  await updateOrderStatus(orderId, newStatus);
+  return { status: newStatus };
 }

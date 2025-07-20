@@ -1,39 +1,53 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 export default function CategorySelect({
   value,
   onChange,
+  label = "Select Category",
+  disabled = false,
 }: {
   value: string;
   onChange: (val: string) => void;
+  label?: string;
+  disabled?: boolean;
 }) {
-  const [categories, setCategories] = useState([]);
-
-  const loadCategories = useCallback(async () => {
-    const response = await fetch("/api/categories");
-    const data = await response.json();
-    setCategories(data);
-    return data;
-  }, []);
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>(
+    []
+  );
 
   useEffect(() => {
-    loadCategories();
-  }, [loadCategories]);
+    async function fetchCategories() {
+      const res = await fetch("/api/categories");
+      const cats = await res.json();
+      setCategories(cats);
+    }
+    fetchCategories();
+  }, []);
 
   return (
-    <select
-      id="category"
-      required
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="text-gray-900 rounded-md border-[1.5px] border-gray-400 bg-transparent w-full px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      {categories.map((category: any) => (
-        <option key={category.id} value={category.id}>
-          {category.name}
-        </option>
-      ))}
-    </select>
+    <div>
+      <Label>{label}</Label>
+      <Select value={value} onValueChange={onChange} disabled={disabled}>
+        <SelectTrigger>
+          <SelectValue placeholder="Kategori seçin" />
+        </SelectTrigger>
+        <SelectContent>
+          {categories.map((cat) => (
+            <SelectItem key={cat.id} value={String(cat.id)}>
+              {cat.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }

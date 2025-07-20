@@ -4,6 +4,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { toast } from "sonner";
+import { Input } from "./ui/input";
+import { Button } from "./ui/button";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+const loginSchema = z.object({
+  email: z.string().email("Geçerli bir email girin"),
+  password: z.string().min(8, "Şifre en az 8 karakter olmalı"),
+});
+
+type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginForm({
   setLoading,
@@ -17,13 +29,19 @@ export default function LoginForm({
     reason === "not_admin" ? "Bu sayfaya erişmek için admin olmalısınız." : null
   );
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+  });
+
+  async function onSubmit(data: LoginFormValues) {
     try {
-      event.preventDefault();
       setLoading(true);
-      const formData = new FormData(event.currentTarget);
       const response = await signIn("credentials", {
-        ...Object.fromEntries(formData),
+        ...data,
         redirect: false,
       });
       setLoading(false);
@@ -31,7 +49,7 @@ export default function LoginForm({
         if (reason === "not_admin") {
           setError("Bu sayfaya erişmek için admin olmalısınız.");
         } else {
-          setError("Invalid credentials");
+          setError("Eksik yada hatalı giriş!");
         }
         return;
       }
@@ -45,45 +63,50 @@ export default function LoginForm({
   }
 
   return (
-    <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-      <div className="rounded-md shadow-sm -space-y-px">
+    <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
+      <div className="rounded-md shadow-sm space-y-2">
         <div>
           <label htmlFor="email" className="sr-only">
             Email address
           </label>
-          <input
+          <Input
             id="email"
-            name="email"
             type="email"
-            required
-            className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
             placeholder="Email address"
+            autoComplete="email"
+            {...register("email")}
           />
+          {errors.email && (
+            <div className="text-red-500 text-xs mt-1">
+              {errors.email.message}
+            </div>
+          )}
         </div>
         <div>
           <label htmlFor="password" className="sr-only">
             Password
           </label>
-          <input
+          <Input
             id="password"
-            name="password"
             type="password"
-            required
-            className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
             placeholder="Password"
+            autoComplete="current-password"
+            {...register("password")}
           />
+          {errors.password && (
+            <div className="text-red-500 text-xs mt-1">
+              {errors.password.message}
+            </div>
+          )}
         </div>
       </div>
 
       {error && <div className="text-red-500 text-sm text-center">{error}</div>}
 
       <div>
-        <button
-          type="submit"
-          className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
+        <Button type="submit" className="w-full">
           Sign in
-        </button>
+        </Button>
       </div>
     </form>
   );

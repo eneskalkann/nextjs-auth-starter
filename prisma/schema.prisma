@@ -93,7 +93,7 @@ model Product {
   slug         String         @unique
   isOnSale     Boolean        @default(false)
   price        Float
-  fixed_price  Float
+  fixed_price  Float?
   stock        Int
   isOnShopPage Boolean        @default(false)
   adminId      String
@@ -154,6 +154,7 @@ model Order {
   user            User        @relation("UserOrders", fields: [userId], references: [id])
   items           OrderItem[]
   isNew           Boolean     @default(true)
+  status          String      @default("processing")
 }
 
 model OrderItem {

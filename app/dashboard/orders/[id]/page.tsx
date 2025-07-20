@@ -1,82 +1,53 @@
-"use client";
-import { use, useEffect, useState } from "react";
-import { getOrderById, markOrderAsRead } from "../actions";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { PaymentStatusBadge } from "@/components/ui/PaymentStatusBadge";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import Spinner from "@/components/ui/Spinner";
-import { useNewOrder } from "@/lib/context/NewOrderContext";
+import { getOrderById } from "../actions";
+import OrderStatusDropdown from "./OrderStatusDropdown";
 
-export default function OrderDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = use(params);
-  const [order, setOrder] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { setNewOrdersCount, newOrdersCount } = useNewOrder();
+type Params = Promise<{ id: string }>;
 
-  useEffect(() => {
-    const loadOrder = async () => {
-      try {
-        setLoading(true);
-        const order = await getOrderById(id);
+export default async function OrderDetailPage({ params }: { params: Params }) {
+  const { id } = await params;
+  const order = await getOrderById(id);
 
-        if (!order) {
-          throw new Error("order not found");
-        }
-
-        setOrder(order);
-      } catch (err) {
-        console.error("Siparişler yüklenirken hata oluştu:", err);
-        setError("Siparişler yüklenirken bir hata oluştu");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadOrder();
-  }, []);
-
-  useEffect(() => {
-    const markAsRead = async () => {
-      try {
-        await markOrderAsRead(id);
-        setNewOrdersCount(Math.max(0, newOrdersCount - 1));
-      } catch (e) {
-        console.error("Order isNew güncellenirken hata:", e);
-      }
-    };
-    markAsRead();
-  }, [id]);
-
-  if (loading) {
-    return (
-      <div className="w-full h-full flex items-center justify-center">
-        <Spinner /> <span className="ml-2">Yükleniyor...</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return <div className="text-red-500">{error}</div>;
-  }
+  const shipping =
+    typeof order?.shippingAddress === "object" &&
+    order?.shippingAddress !== null
+      ? (order.shippingAddress as {
+          address?: string;
+          city?: string;
+          zipCode?: string;
+        })
+      : {};
 
   if (!order) {
     return <div>Sipariş bulunamadı</div>;
   }
-
+  console.log(order);
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <Link
-          href="/dashboard/orders"
-          className="flex items-center gap-2 font-semibold text-black"
-        >
-          <ArrowLeft /> Siparişlere geri dön
-        </Link>
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/dashboard/orders">
+                Siparişler
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{order.id}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
       </div>
       <h1 className="text-2xl font-bold mb-4">Sipariş Detayı</h1>
 
@@ -100,13 +71,14 @@ export default function OrderDetailPage({
               <span className="font-medium">Toplam Tutar:</span>{" "}
               {order.totalPrice} ₺
             </p>
-            <p>
+            <div>
               <span className="font-medium">Ödeme Durumu:</span>{" "}
-              {order.paymentStatus}
-            </p>
-            <p>
-              <span className="font-medium">Durum:</span> {order.status}
-            </p>
+              <PaymentStatusBadge paymentStatus={order.paymentStatus} />
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="font-medium">Sipariş Durumu:</span>
+              <OrderStatusDropdown orderId={order.id} status={order.status} />
+            </div>
           </div>
         </div>
       </div>
@@ -131,8 +103,7 @@ export default function OrderDetailPage({
           <div>
             <p>
               <span className="font-medium">Kargo Adresi:</span>{" "}
-              {order?.shippingAddress?.address}, {order?.shippingAddress?.city},{" "}
-              {order?.shippingAddress?.zipCode}
+              {shipping.address}, {shipping.city}, {shipping.zipCode}
             </p>
           </div>
         </div>
@@ -151,6 +122,7 @@ export default function OrderDetailPage({
                 src={item.product?.images[0]?.url || "/placeholder-product.jpg"}
                 alt={item.product?.title}
                 width={100}
+                className="rounded-md object-cover"
                 height={100}
               />
               <div className="flex-1 pl-3">

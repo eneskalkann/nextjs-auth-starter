@@ -1,11 +1,6 @@
-"use client";
-
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
 import { getOrders } from "./actions";
 import { Badge } from "@/components/ui/badge";
+import { PaymentStatusBadge } from "@/components/ui/PaymentStatusBadge";
 import {
   Table,
   TableBody,
@@ -14,9 +9,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import Button from "@/components/ui/button";
-import Spinner from "@/components/ui/Spinner";
+import { format } from "date-fns";
+import { tr } from "date-fns/locale";
+import { CustomLink } from "@/components/ui/custom-link";
 
 type Order = {
   id: string;
@@ -42,75 +37,18 @@ type Order = {
   }>;
 };
 
-export default function OrdersPage() {
-  const router = useRouter();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const loadOrders = async () => {
-      try {
-        setLoading(true);
-        const { data, error } = await getOrders();
-
-        if (error) {
-          throw new Error(error);
-        }
-
-        if (data && Array.isArray(data)) {
-          const formattedOrders = data.map((order: any) => ({
-            ...order,
-            orderNumber: `${String(order.id).padStart(6, "0")}`,
-            customerName: order.user?.name || "Misafir Müşteri",
-            customerEmail: order.user?.email || "guest@example.com",
-            items: order.items || [],
-          }));
-
-          setOrders(formattedOrders);
-        } else {
-          setOrders([]);
-        }
-      } catch (err) {
-        console.error("Siparişler yüklenirken hata oluştu:", err);
-        setError("Siparişler yüklenirken bir hata oluştu");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadOrders();
-  }, []);
-
-  const getStatusBadge = (status: string) => {
-    const statusMap: Record<string, string> = {
-      pending: "Beklemede",
-      processing: "İşleniyor",
-      completed: "Tamamlandı",
-      cancelled: "İptal Edildi",
-    };
-
-    const colorMap: Record<string, string> = {
-      pending: "bg-yellow-100 text-yellow-800",
-      processing: "bg-blue-100 text-blue-800",
-      completed: "bg-green-100 text-green-800",
-      cancelled: "bg-red-100 text-red-800",
-    };
-
-    return (
-      <Badge className={`${colorMap[status] || "bg-gray-100 text-gray-800"}`}>
-        {statusMap[status] || status}
-      </Badge>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="w-full h-full flex items-center justify-center">
-        <Spinner /> <span className="ml-2">Yükleniyor...</span>
-      </div>
-    );
-  }
+export default async function OrdersPage() {
+  const { data, error } = await getOrders();
+  const orders =
+    data && Array.isArray(data)
+      ? data.map((order: any) => ({
+          ...order,
+          orderNumber: `${String(order.id).padStart(6, "0")}`,
+          customerName: order.user?.name || "Misafir Müşteri",
+          customerEmail: order.user?.email || "guest@example.com",
+          items: order.items || [],
+        }))
+      : [];
 
   if (error) {
     return (
@@ -131,13 +69,6 @@ export default function OrdersPage() {
           </div>
           <div className="ml-3">
             <p className="text-sm text-red-700">{error}</p>
-            <Button
-              variant="secondary"
-              className="mt-2"
-              onClick={() => window.location.reload()}
-            >
-              Tekrar Dene
-            </Button>
           </div>
         </div>
       </div>
@@ -164,7 +95,7 @@ export default function OrdersPage() {
           </TableHeader>
           <TableBody>
             {orders.length > 0 ? (
-              orders.map((order) => (
+              orders.map((order: any) => (
                 <TableRow key={order.id}>
                   <TableCell className="font-medium">
                     {order.orderNumber}
@@ -177,7 +108,7 @@ export default function OrdersPage() {
                   </TableCell>
                   <TableCell>
                     <div className="max-w-xs truncate">
-                      {order.items.map((item) => (
+                      {order.items.map((item: any) => (
                         <div key={item.id} className="text-sm">
                           {item.quantity}x{" "}
                           {item.product?.title || "Ürün adı yok"}
@@ -187,21 +118,18 @@ export default function OrdersPage() {
                   </TableCell>
                   <TableCell>{order.totalPrice.toFixed(2)} ₺</TableCell>
                   <TableCell>{getStatusBadge(order.status)}</TableCell>
-                  <TableCell>{getStatusBadge(order.paymentStatus)}</TableCell>
+                  <TableCell>
+                    <PaymentStatusBadge paymentStatus={order.paymentStatus} />
+                  </TableCell>
                   <TableCell>
                     {format(new Date(order.createdAt), "dd MMM yyyy HH:mm", {
                       locale: tr,
                     })}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="secondary"
-                      onClick={() =>
-                        router.push(`/dashboard/orders/${order.id}`)
-                      }
-                    >
+                    <CustomLink href={`/dashboard/orders/${order.id}`}>
                       Detay
-                    </Button>
+                    </CustomLink>
                   </TableCell>
                 </TableRow>
               ))
@@ -219,5 +147,37 @@ export default function OrdersPage() {
         </Table>
       </div>
     </div>
+  );
+}
+
+function getStatusBadge(status: string) {
+  const statusMap: Record<string, string> = {
+    processing: "İşleniyor",
+    preparing: "Hazırlanıyor",
+    shipping: "Kargoda",
+    delivered: "Teslim Edildi",
+    completed: "Tamamlandı",
+    cancelled: "İptal Edildi",
+    pending: "Beklemede",
+    paid: "Ödendi",
+  };
+  const colorMap: Record<string, string> = {
+    processing:
+      "bg-yellow-100 text-yellow-800 hover:bg-yellow-50 hover:text-yellow-700 transition-all",
+    preparing:
+      "bg-blue-100 text-blue-800 hover:bg-blue-50 hover:text-blue-700 transition-all",
+    shipping:
+      "bg-orange-100 text-orange-800 hover:bg-orange-50 hover:text-orange-700 transition-all",
+    delivered:
+      "bg-green-100 text-green-800 hover:bg-green-50 hover:text-green-700 transition-all",
+    completed: "bg-green-100 text-green-800",
+    cancelled: "bg-red-100 text-red-800",
+    pending: "bg-yellow-100 text-yellow-800",
+    paid: "bg-green-100 text-green-800",
+  };
+  return (
+    <Badge className={`${colorMap[status] || "bg-gray-100 text-gray-800"}`}>
+      {statusMap[status] || status}
+    </Badge>
   );
 }

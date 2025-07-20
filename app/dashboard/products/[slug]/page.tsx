@@ -1,8 +1,16 @@
 "use client";
 
-import ConfirmModal from "@/components/ui/ConfirmModal";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import Spinner from "@/components/ui/Spinner";
-import UploadIcon from "@/components/ui/UploadIcon";
 import {
   closestCenter,
   DndContext,
@@ -28,6 +36,18 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft } from "lucide-react";
 import CategorySelect from "@/components/categorySelect";
+import UploadIcon from "@/components/ui/UploadIcon";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 export default function ProductDetailPage({
   params,
@@ -46,6 +66,10 @@ export default function ProductDetailPage({
   const [isDirty, setIsDirty] = useState(false);
   const router = useRouter();
   const [categoryId, setCategoryId] = useState("");
+  const [isOnSale, setIsOnSale] = useState(product?.isOnSale ?? true);
+  const [isOnShopPage, setIsOnShopPage] = useState(
+    product?.isOnShopPage ?? false
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -64,7 +88,9 @@ export default function ProductDetailPage({
         (data.images || []).map((img: any) => ({ id: img.id, url: img.url }))
       );
       setDeletedImages([]);
-      setCategoryId(data.categories?.[0]?.id ? String(data.categories[0].id) : "");
+      setCategoryId(
+        data.categories?.[0]?.id ? String(data.categories[0].id) : ""
+      );
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load product");
@@ -121,34 +147,52 @@ export default function ProductDetailPage({
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <Link
-          href="/dashboard/products"
-          className="flex items-center gap-2 font-semibold text-black"
-        >
-          <ArrowLeft /> Back to Products
-        </Link>
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/dashboard/products">
+                Ürünler
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{product?.title}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
       </div>
 
-      <ConfirmModal
-        open={showDeleteModal}
-        title={`"${product?.title}" isimli ürünü silmek üzeresiniz!`}
-        description="Bu işlemi geri alamazsınız. Emin misiniz?"
-        confirmText="Evet, Sil"
-        cancelText="Vazgeç"
-        onCancel={() => setShowDeleteModal(false)}
-        onConfirm={async () => {
-          setShowDeleteModal(false);
-          try {
-            await deleteProduct(slug);
-            toast.success("Ürün başarıyla silindi!");
-            router.push("/dashboard/products");
-          } catch (err) {
-            toast.error(
-              err instanceof Error ? err.message : "Ürün silinemedi!"
-            );
-          }
-        }}
-      />
+      <AlertDialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              "{product?.title}" isimli ürünü silmek üzeresiniz!
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Bu işlemi geri alamazsınız. Emin misiniz?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                setShowDeleteModal(false);
+                try {
+                  await deleteProduct(slug);
+                  toast.success("Ürün başarıyla silindi!");
+                  router.push("/dashboard/products");
+                } catch (err) {
+                  toast.error(
+                    err instanceof Error ? err.message : "Ürün silinemedi!"
+                  );
+                }
+              }}
+            >
+              Evet, Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="">
         <h1 className="text-3xl font-bold mb-6 text-black">{product?.title}</h1>
@@ -196,6 +240,8 @@ export default function ProductDetailPage({
                 formData.append("newImages", img.file);
               }
             });
+            formData.append("isOnSale", isOnSale ? "on" : "off");
+            formData.append("isOnShopPage", isOnShopPage ? "on" : "off");
             try {
               await updateProduct(slug, formData);
               toast.success("Ürün başarıyla güncellendi!");
@@ -279,9 +325,7 @@ export default function ProductDetailPage({
             </div>
             <div className="flex-1 flex flex-col gap-4 w-full">
               <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Title
-                </label>
+                <Label>Title</Label>
                 <Input
                   type="text"
                   name="title"
@@ -291,21 +335,15 @@ export default function ProductDetailPage({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Description
-                </label>
+                <Label>Description</Label>
                 <Textarea
                   name="description"
-                  maxLength={200}
                   defaultValue={product.description || ""}
                   required
                   onChange={() => setIsDirty(true)}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Select Category
-                </label>
                 <CategorySelect
                   value={categoryId}
                   onChange={(val) => {
@@ -315,9 +353,9 @@ export default function ProductDetailPage({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <Label className="block text-sm font-medium text-gray-700">
                   Price
-                </label>
+                </Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -328,23 +366,19 @@ export default function ProductDetailPage({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Fixed Price
-                </label>
+                <Label>Fixed Price</Label>
                 <Input
                   type="number"
                   step="0.01"
                   name="fixed_price"
-                  defaultValue={product.fixed_price}
+                  defaultValue={product.fixed_price ?? ""}
                   required
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   onChange={() => setIsDirty(true)}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Stock
-                </label>
+                <Label>Stock</Label>
                 <Input
                   type="number"
                   name="stock"
@@ -356,47 +390,39 @@ export default function ProductDetailPage({
               </div>
 
               <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  name="isOnSale"
-                  defaultChecked={product.isOnSale}
-                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  onChange={() => setIsDirty(true)}
+                <Switch
+                  checked={isOnSale}
+                  onCheckedChange={setIsOnSale}
+                  id="isOnSale"
                 />
-                <label className="text-sm font-medium text-gray-700">
-                  On Sale
-                </label>
+                <Label htmlFor="isOnSale">On Sale</Label>
               </div>
+              {/*
               <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  name="isOnShopPage"
-                  defaultChecked={product.isOnShopPage}
-                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  onChange={() => setIsDirty(true)}
+                <Switch
+                  checked={isOnShopPage}
+                  onCheckedChange={setIsOnShopPage}
+                  id="isOnShopPage"
                 />
-                <label className="text-sm font-medium text-gray-700">
-                  Show on Shop Page
-                </label>
+                <Label htmlFor="isOnShopPage">Show on Shop Page</Label>
               </div>
+              */}
               <div className="flex justify-between items-center mt-4">
-                <button
+                <Button
                   type="button"
+                  variant="destructive"
                   onClick={() => setShowDeleteModal(true)}
-                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
                 >
                   Sil
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="default"
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center min-w-[140px]"
                   disabled={!isDirty || isLoading}
                 >
-                  {isLoading ? (
-                    <Spinner className="h-5 w-5 text-white mr-2" />
-                  ) : null}
+                  {isLoading ? <Spinner /> : null}
                   {isLoading ? "Kaydediliyor..." : "Kaydet"}
-                </button>
+                </Button>
               </div>
             </div>
           </div>

@@ -1,14 +1,14 @@
 "use client";
 
-import Link from "next/link";
-import { useSession, signOut } from "next-auth/react";
-import { LogOutIcon } from "lucide-react";
-import { usePathname } from "next/navigation";
-import { cn } from "@/lib/cn";
-import { Badge } from "@/components/ui/badge";
-import { useEffect, useState } from "react";
 import { getOrders } from "@/app/dashboard/orders/actions";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/cn";
 import { useNewOrder } from "@/lib/context/NewOrderContext";
+import { LogOutIcon } from "lucide-react";
+import { signOut, useSession } from "next-auth/react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 
 export default function Header() {
   const { data: session } = useSession();
@@ -63,6 +63,17 @@ export default function Header() {
               </div>
               <div className="flex flex-col gap-2">
                 <Link
+                  href="/dashboard"
+                  className={cn(
+                    "text-4xl font-bold",
+                    pathname === "/dashboard"
+                      ? "text-zinc-400"
+                      : "text-white hover:text-zinc-300 transition-all"
+                  )}
+                >
+                  Anasayfa
+                </Link>
+                <Link
                   href="/dashboard/products"
                   className={cn(
                     "text-4xl font-bold",
@@ -71,7 +82,7 @@ export default function Header() {
                       : "text-white hover:text-zinc-300 transition-all"
                   )}
                 >
-                  Products
+                  Ürünler
                 </Link>
                 <Link
                   href="/dashboard/orders"
@@ -82,21 +93,21 @@ export default function Header() {
                       : "text-white hover:text-zinc-300 transition-all"
                   )}
                 >
-                  Orders
+                  Siparişler
                   {newOrdersCount > 0 && (
                     <span className="ml-2 w-2 h-2 rounded-full bg-destructive"></span>
                   )}
                 </Link>
                 <Link
-                  href="/dashboard/users/new"
+                  href="/dashboard/customers"
                   className={cn(
                     "text-4xl font-bold",
-                    pathname.startsWith("/dashboard/users")
+                    pathname.startsWith("/dashboard/customers")
                       ? "text-zinc-400"
                       : "text-white hover:text-zinc-300 transition-all"
                   )}
                 >
-                  Users
+                  Müşterilerim
                 </Link>
               </div>
               <div className="flex items-center space-x-4">
@@ -105,7 +116,7 @@ export default function Header() {
                   className="flex gap-2 text-xl items-center text-white transition-all hover:text-zinc-300"
                 >
                   <LogOutIcon />
-                  Sign Out
+                  Çıkış Yap
                 </button>
               </div>
             </div>
