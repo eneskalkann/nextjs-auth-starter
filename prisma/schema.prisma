@@ -134,12 +134,18 @@ model Tag {
 model Address {
   id          Int      @id @default(autoincrement())
   title       String   // e.g., "Ev Adresim", "İş Yerim"
+  name        String  
+  surname     String  
+  phone       String  
+  email       String  
   contactName String
   street      String
   city        String
+  district    String
   zipCode     String
   country     String
   isDefault   Boolean  @default(false)
+  addressDetail String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
